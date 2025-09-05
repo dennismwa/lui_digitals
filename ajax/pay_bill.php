@@ -85,36 +85,49 @@ try {
         ]
     );
     
-    // If recurring bill, create next instance
+    // If recurring bill, create next instance ONLY if this is the first time paying
     if ($bill['is_recurring'] && $bill['recurring_period']) {
-        $nextDueDate = date('Y-m-d', strtotime($bill['due_date'] . ' +1 ' . $bill['recurring_period']));
-        
-        $db->execute(
-            "INSERT INTO bills (user_id, category_id, name, amount, due_date, is_recurring, recurring_period, auto_pay, priority, threshold_warning, notes) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [
-                $user_id,
-                $bill['category_id'],
-                $bill['name'],
-                $bill['amount'],
-                $nextDueDate,
-                $bill['is_recurring'],
-                $bill['recurring_period'],
-                $bill['auto_pay'],
-                $bill['priority'],
-                $bill['threshold_warning'],
-                $bill['notes']
-            ]
+        // Check if we already created a recurring instance for this bill
+        $existingRecurring = $db->fetchOne(
+            "SELECT id FROM bills 
+             WHERE user_id = ? AND name = ? AND amount = ? AND status = 'pending' 
+             AND due_date > ? AND id != ?",
+            [$user_id, $bill['name'], $bill['amount'], $bill['due_date'], $bill_id]
         );
+        
+        // Only create new recurring bill if none exists
+        if (!$existingRecurring) {
+            $nextDueDate = date('Y-m-d', strtotime($bill['due_date'] . ' +1 ' . $bill['recurring_period']));
+            
+            $db->execute(
+                "INSERT INTO bills (user_id, category_id, name, amount, due_date, is_recurring, recurring_period, auto_pay, priority, threshold_warning, notes) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    $user_id,
+                    $bill['category_id'],
+                    $bill['name'],
+                    $bill['amount'],
+                    $nextDueDate,
+                    $bill['is_recurring'],
+                    $bill['recurring_period'],
+                    $bill['auto_pay'],
+                    $bill['priority'],
+                    $bill['threshold_warning'],
+                    $bill['notes']
+                ]
+            );
+        }
     }
     
     $db->commit();
     
     echo json_encode([
         'success' => true,
-        'message' => 'Bill paid successfully',
-        'new_balance' => $newBalance,
-        'amount_paid' => $bill['amount']
+        'message' => $newBillBalance <= 0 ? 'Bill paid successfully' : 'Partial payment made successfully',
+        'new_balance' => $newWalletBalance,
+        'amount_paid' => $actualPayment,
+        'remaining_bill_balance' => $newBillBalance,
+        'bill_status' => $newStatus
     ]);
     
 } catch (Exception $e) {
