@@ -1,0 +1,25 @@
+/* Custom animations and utilities */
+.notification-slide {
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+.form-dirty {
+    position: relative;
+}
+
+.form-dirty::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #f59e0b, #10b981);
+    border-radius: 8px;
+    z-index: -1;
+}
